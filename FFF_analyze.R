@@ -144,8 +144,8 @@ message(sprintf('Wrote %s',filename_pdf))
 # Downsample, represent field potentials as shaded polygons.  Note that the
 # trial_triggered_average_per_channel is already downsampled, but not ixshort_time.
 #####
-filename_pdf <- sprintf('%s%s.lfp_z.pdf',DIR_PLOT,rev(strsplit(DIR_DATA,'/',fixed=TRUE)[[1]])[1])
-pdf(file=filename_pdf,width=8.5,height=8.5,paper="special",colormodel="srgb",compress=TRUE)
+filename_pdf <- sprintf('%s%s.lfp.pdf',DIR_PLOT,rev(strsplit(DIR_DATA,'/',fixed=TRUE)[[1]])[1])
+pdf(file=filename_pdf,width=8.5,height=8.5*length(MAP)/32,paper="special",colormodel="srgb",compress=TRUE)
 par(mar=c(3,3,3,3), ps=10)
 
 fnPolybracket <- function(x) c(x[1],x,rev(x)[1])
