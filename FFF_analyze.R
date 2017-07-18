@@ -5,7 +5,7 @@ DIR_DATA <- '/Users/luke/physiolArchive/m664/m664r2#28_2017-03-09_13-36-38_full_
 DIR_PLOT <- '/tmp/' # keep trailing slash
 DIR_R_BIN <- '/Users/luke/physiolArchive/bin/' # keep trailing slash
 FLAG_NOTCH_60 <- TRUE
-NUM_TRIALS <- 10
+NUM_TRIALS <- 100
 ##########
 
 ###
@@ -38,10 +38,13 @@ DURATION_TRIAL_S <- 3
 TIME_STIM_ON_S <- 0.25
 TIME_STIM_OFF_S <- 1.25
 TIME_TRACE_START_S <- 0.15
-TIME_TRACE_END_S <- 0.5
+TIME_TRACE_END_S <- 0.15 + 0.35 # trace is 350ms duration
+TIME_NULLTRACE_START_S <- 2.5
+TIME_NULLTRACE_END_S <- 2.5 + 0.35 # the null trace is 350ms duration
 duration_trial_samples <- DURATION_TRIAL_S*F_SAMP_HZ
 time_trial_s <- (0:(duration_trial_samples-1))/F_SAMP_HZ
 ixshort_time <- which((time_trial_s >= TIME_TRACE_START_S) & (time_trial_s < TIME_TRACE_END_S))
+ixshort_time_null <- which((time_trial_s >= TIME_NULLTRACE_START_S) & (time_trial_s < TIME_NULLTRACE_END_S))
 ixtrial <- ixpulse[seq(from=1, to=length(ixpulse), by=DURATION_TRIAL_PULSES)]
 FAC_DOWNSAMPLE <- 100
 ##########
@@ -52,6 +55,8 @@ FAC_DOWNSAMPLE <- 100
 trace_per_trial_per_channel <- array(NA, dim=c(length(fnDownsampleV(1:length(ixshort_time), FAC_DOWNSAMPLE)),NUM_TRIALS,length(MAP)))
 flag_artifact_per_trial_per_channel <- matrix(TRUE, nrow=length(MAP), ncol=NUM_TRIALS)
 trial_triggered_average_per_channel <- matrix(NA, ncol=length(MAP), nrow=length(fnDownsampleV(1:length(ixshort_time), FAC_DOWNSAMPLE)))
+trace_per_trial_per_channel_null <- array(NA, dim=c(length(ixshort_time),NUM_TRIALS,length(MAP)))
+rms63_per_trial_per_channel_null <- rms60_per_trial_per_channel_null <- trace_rms_per_trial_per_channel_null <- matrix(NA, nrow=length(MAP), ncol=NUM_TRIALS)
 for (iich in 1:length(MAP)) {
 message(sprintf('Processing channel %d (%d of %d)...',MAP[iich],iich,length(MAP)))
 
@@ -70,12 +75,17 @@ message(sprintf('Processing channel %d (%d of %d)...',MAP[iich],iich,length(MAP)
     signal_filtered <- signal::filter(bfnotch, signal_filtered)
   }
 
-# Detect artifacts.
+# Detect artifacts; collect r.m.s. measures of null trace.
   trace_power_per_trial <- numeric()
   for (iitrial in 1:NUM_TRIALS) {
     this_sig <- signal[ixtrial[iitrial]:(ixtrial[iitrial] + duration_trial_samples-1)]
     this_trace <- this_sig[ixshort_time]
+    this_trace_null <- this_sig[ixshort_time_null]
     trace_power_per_trial <- c(trace_power_per_trial,sum(this_trace^2))
+    trace_rms_per_trial_per_channel_null[iich,iitrial] <- sqrt(mean(this_trace_null^2))
+# Definition: sine wave's r.m.s. = Vpp/(2*sqrt(2))
+    rms60_per_trial_per_channel_null[iich,iitrial] <- 4*Mod(fft(this_trace_null)[22]/length(this_trace_null))/(2*sqrt(2))
+    rms63_per_trial_per_channel_null[iich,iitrial] <- 4*Mod(fft(this_trace_null)[23]/length(this_trace_null))/(2*sqrt(2))
   }
   ix_artifact <- which(trace_power_per_trial > quantile(trace_power_per_trial, probs=0.9))
 
@@ -95,7 +105,7 @@ message(sprintf('Processing channel %d (%d of %d)...',MAP[iich],iich,length(MAP)
 ##
 # 'Per trial' plot of LFPs.
 #####
-filename_pdf <- sprintf('%s%s.per_trial.pdf',DIR_PLOT,rev(strsplit(DIR_DATA,'/',fixed=TRUE)[[1]])[1])
+filename_pdf <- sprintf('%s%s.lfp.per_trial.pdf',DIR_PLOT,rev(strsplit(DIR_DATA,'/',fixed=TRUE)[[1]])[1])
 pdf(file=filename_pdf, width=2*(NUM_TRIALS+1), height=2*length(MAP), paper='special', colormodel='srgb', compress=TRUE)
 par(ps=10, mfrow=c(length(MAP),NUM_TRIALS+1), mai=rep(0.1,4), pin=c(2,2))
 
@@ -141,8 +151,7 @@ message(sprintf('Wrote %s',filename_pdf))
 #####
 
 ###
-# Downsample, represent field potentials as shaded polygons.  Note that the
-# trial_triggered_average_per_channel is already downsampled, but not ixshort_time.
+# Plot of averaged LFPs as shaded polygons. We downsample here, but note that the trial_triggered_average_per_channel is already downsampled, but not ixshort_time.
 #####
 filename_pdf <- sprintf('%s%s.lfp.pdf',DIR_PLOT,rev(strsplit(DIR_DATA,'/',fixed=TRUE)[[1]])[1])
 pdf(file=filename_pdf,width=8.5,height=8.5*length(MAP)/32,paper="special",colormodel="srgb",compress=TRUE)
@@ -166,4 +175,38 @@ mtext('Electrode number', 2, line=2, font=3, cex=0.8)
 dev.off()
 message(sprintf('Wrote %s',filename_pdf))
 ##########
+
+###
+# SNR plot.
+#####
+filename_pdf <- sprintf('%s%s.snr.pdf',DIR_PLOT,rev(strsplit(DIR_DATA,'/',fixed=TRUE)[[1]])[1])
+pdf(file=filename_pdf,width=8.5,height=8.5*length(MAP)/32,paper="special",colormodel="srgb",compress=TRUE)
+par(mar=c(3,3,3,3), ps=10)
+
+meas1 <- rowMeans(trace_rms_per_trial_per_channel_null)
+meas2 <- rowMeans(rms60_per_trial_per_channel_null)
+meas3 <- rowMeans(rms63_per_trial_per_channel_null)
+plot(NA, xlim=c(0,1.5)*max(meas1), ylim=c(-length(MAP),1), main='', axes=F, xlab='', ylab='')
+mtext('Electrode number', 2, line=2, font=3, cex=0.8)
+mtext('Broadband r.m.s.', side=1, line=2, font=3, cex=0.8)
+mtext('r.m.s. at 60 (63) Hz', side=3, line=2, font=3, cex=0.8)
+for (iitrace in 1:length(meas1)) {
+  yoffset <- -(iitrace-1)
+  lines(c(0,1.5)*max(meas1), rep(yoffset, 2), lty='dashed', col='gray')
+  points(meas1[iitrace], yoffset, pch=22, col='black', bg='black', cex=1) 
+  mtext(sprintf('%d',iitrace), 2, at=yoffset, cex=0.8, las=1, font=3)
+}
+axis(1, cex=0.8, font=3, col='black')
+par(new=TRUE) # plot againse the upper axis
+plot(NA, xlim=c(0,1.5)*max(c(meas2,meas3)), ylim=c(-length(MAP),1), main='', axes=F, xlab='', ylab='')
+for (iitrace in 1:length(meas1)) {
+  yoffset <- -(iitrace-1)
+  points(meas2[iitrace], yoffset, pch=22, col='red', bg='red', cex=1) 
+  points(meas3[iitrace], yoffset, pch=22, col='red', bg='white', cex=1) 
+}
+axis(3, font=3, cex=0.8, col='red')
+
+dev.off()
+message(sprintf('Wrote %s',filename_pdf))
+#####
 
