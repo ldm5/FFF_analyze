@@ -3,6 +3,7 @@
 #####
 
 # Constants, functions...
+library('lmtest')
 ORDER_MODEL <- 10
 fnSquare <- function(ii,jj,sz,brd) polygon(x=ii + c(-sqrt(sz)/2,-sqrt(sz)/2,sqrt(sz)/2,sqrt(sz)/2),
                                            y=jj + c(-sqrt(sz)/2,sqrt(sz)/2,sqrt(sz)/2,-sqrt(sz)/2),
