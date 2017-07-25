@@ -1,11 +1,32 @@
 ###
-# This block contains all the constants you might need to configure online.
+# This block contains all the constants you might need to configure at the start of an experiment.
 ##########
-DIR_DATA <- '/Users/luke/physiolArchive/m664/m664r2#28_2017-03-09_13-36-38_full_field_flash/' # keep trailing slash
-DIR_PLOT <- '/tmp/' # keep trailing slash
-DIR_R_BIN <- '/Users/luke/physiolArchive/bin/' # keep trailing slash
+DIR_DATA_PREFIX <- '/Users/luke/physiolArchive/m664/' # keep trailing slash
+DIR_PLOT <- DIR_DATA_PREFIX
+#DIR_R_BIN <- '/Users/luke/physiolArchive/bin/' # keep trailing slash
+DIR_R_BIN <- '/Users/luke/gits/FFF_analyze/' # keep trailing slash
 FLAG_NOTCH_60 <- TRUE
 NUM_TRIALS <- 100
+##########
+
+###
+# Interactive bit for selecting experiment to analyze.
+##########
+aa <- dir(DIR_DATA_PREFIX, pattern="full_field_flash$")
+aa <- c(aa, dir(DIR_DATA_PREFIX, pattern="full_field_flash_2pol$"))
+for (ixaa in 1:length(aa)) cat(sprintf('%d: %s\n',ixaa,aa[ixaa]))
+cat('Select the experiment to analyze: ')
+fin <- file('stdin')
+num_select <- as.numeric(readLines(con=fin, n=1))
+cat('Compute CSD? [n]: ')
+FLAG_CSD <- FALSE
+if (readLines(con=fin, n=1) == 'y') FLAG_CSD <- TRUE
+cat('Compute Granger? [n]: ')
+FLAG_GRANGER <- FALSE
+if (readLines(con=fin, n=1) == 'y') FLAG_GRANGER <- TRUE
+close(fin)
+if (!is.numeric(num_select) | (num_select > length(aa)) | (num_select < 1)) stop('Select a number appearing on the list')
+DIR_DATA <- sprintf('%s%s/', DIR_DATA_PREFIX, aa[num_select])
 ##########
 
 ###
@@ -209,4 +230,10 @@ axis(3, font=3, cex=0.8, col='red')
 dev.off()
 message(sprintf('Wrote %s',filename_pdf))
 #####
+
+if (FLAG_CSD) source(sprintf('%sFFF_analyze_CSD.R',DIR_R_BIN))
+if (FLAG_GRANGER) source(sprintf('%sFFF_analyze_granger.R',DIR_R_BIN))
+
+
+
 
