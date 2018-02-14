@@ -33,6 +33,7 @@ DIR_DATA <- sprintf('%s%s/', DIR_DATA_PREFIX, aa[num_select])
 # Libraries, functions, etc.
 ##########
 library('signal')
+library('parallel')
 source(sprintf('%sRFFFReadFile.R', DIR_R_BIN))
 source(sprintf('%sRFFFProcSyncSignal.R', DIR_R_BIN))
 fnDownsampleV <- function(x,f) x[seq(from=1, to=length(x), by=f)] # downsample a vector
